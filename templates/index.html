@@ -4,15 +4,46 @@
 <head>
     <meta charset="UTF-8">
     <title>Zotero Library</title>
+    <style>
+        #searchBox {
+            margin-bottom: 10px;
+            padding: 5px;
+            width: 300px;
+        }
+
+        .highlight {
+            background-color: yellow;
+        }
+    </style>
 </head>
 
 <body>
     <h1>Zotero Library</h1>
-    <ul>
+    <!-- 搜索框 -->
+    <input type="text" id="searchBox" placeholder="Search in page...">
+
+    <ul id="fileList">
         {% for f in files %}
         <li><a href="{{ url_for('view_file', filename=f) }}">{{ f }}</a></li>
         {% endfor %}
     </ul>
+
+    <script>
+        // 搜索功能
+        document.getElementById('searchBox').addEventListener('input', function () {
+            const searchTerm = this.value.toLowerCase();
+            const items = document.querySelectorAll('#fileList li');
+
+            items.forEach(function (item) {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>
