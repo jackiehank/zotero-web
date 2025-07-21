@@ -26,7 +26,7 @@ def view_file(filename):
     if filename.lower().endswith('.pdf'):
         # PDF.js 预览
         pdf_url = url_for('serve_file', filename=filename)
-        pdf_url = quote(pdf_url, safe="/:?=&")  # URL 编码
+        # pdf_url = quote(pdf_url, safe="/:?=&")  # URL 编码
         return render_template('viewer.html', pdf_url=pdf_url)
     else:
         # EPUB 先简单提供下载（可后续集成 epub.js）
