@@ -2,10 +2,11 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1">
     <title>Zotero Library</title>
     <link rel="icon" href="{{ url_for('static', filename='icons/zotero_128x128x32.png') }}" type="image/png">
     <style>
+        /* Header 容器 */
         .header-container {
             display: flex;
             flex-direction: column;
@@ -39,23 +40,25 @@
             box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
 
+        /* 搜索框额外样式 */
         #searchBox {
             margin-bottom: 10px;
             padding: 5px;
             width: 300px;
         }
 
+        /* 高亮类 */
         .highlight {
             color: rgb(241, 67, 4);
         }
 
+        /* 文件列表样式 */
         #fileList {
             list-style: none;
             padding: 0;
-            margin: 0;
+            margin: 2rem auto;
             font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
             max-width: 800px;
-            margin: 2rem auto;
             line-height: 1.6;
         }
 
@@ -91,10 +94,40 @@
             color: #007BFF;
         }
 
-        @media (max-width: 600px) {
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .header-container h1 {
+                font-size: 18px;
+            }
+
+            .header-container input[type="text"] {
+                font-size: 15px;
+                padding: 10px;
+            }
+
             #fileList a {
                 font-size: 1rem;
-                padding-left: 1.2rem;
+                padding-left: 1.5rem;
+            }
+
+            #fileList a::before {
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-container h1 {
+                font-size: 16px;
+            }
+
+            .header-container input[type="text"] {
+                font-size: 14px;
+                padding: 8px;
+            }
+
+            #fileList a {
+                font-size: 0.95rem;
+                padding-left: 1.3rem;
             }
 
             #fileList a::before {
