@@ -13,7 +13,60 @@
         }
 
         .highlight {
-            background-color: yellow;
+            color: rgb(241, 67, 4);
+        }
+
+        #fileList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            line-height: 1.6;
+        }
+
+        #fileList li {
+            border-bottom: 1px solid #eee;
+            padding: 0.75rem 0;
+            transition: background-color 0.2s ease;
+        }
+
+        #fileList li:last-child {
+            border-bottom: none;
+        }
+
+        #fileList a {
+            text-decoration: none;
+            color: #333;
+            font-size: 1.1rem;
+            display: block;
+            position: relative;
+            padding-left: 1.5rem;
+            transition: color 0.2s ease;
+        }
+
+        #fileList a::before {
+            content: "📄";
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 1.2rem;
+        }
+
+        #fileList a:hover {
+            color: #007BFF;
+        }
+
+        @media (max-width: 600px) {
+            #fileList a {
+                font-size: 1rem;
+                padding-left: 1.2rem;
+            }
+
+            #fileList a::before {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
