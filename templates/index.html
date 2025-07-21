@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Zotero Library</title>
+    <link rel="icon" href="{{ url_for('static', filename='icons/zotero_128x128x32.png') }}" type="image/png">
     <style>
         #searchBox {
             margin-bottom: 10px;
@@ -18,7 +19,8 @@
 </head>
 
 <body>
-    <h1>Zotero Library</h1>
+    <h1><img src="{{ url_for('static', filename='icons/zotero-logo-512x123.svg') }}" alt="Book Icon" height="32">
+    </h1>
     <!-- 搜索框 -->
     <input type="text" id="searchBox" placeholder="Search in page...">
 
