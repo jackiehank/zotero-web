@@ -6,6 +6,39 @@
     <title>Zotero Library</title>
     <link rel="icon" href="{{ url_for('static', filename='icons/zotero_128x128x32.png') }}" type="image/png">
     <style>
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .header-container h1 {
+            margin: 0;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-container input[type="text"] {
+            padding: 8px 12px;
+            margin-top: 1rem;
+            width: 80%;
+            max-width: 400px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .header-container input[type="text"]:focus {
+            outline: none;
+            border-color: #007BFF;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
         #searchBox {
             margin-bottom: 10px;
             padding: 5px;
@@ -72,10 +105,12 @@
 </head>
 
 <body>
-    <h1><img src="{{ url_for('static', filename='icons/zotero-logo-512x123.svg') }}" alt="Book Icon" height="32">
-    </h1>
-    <!-- 搜索框 -->
-    <input type="text" id="searchBox" placeholder="Search in page...">
+    <div class="header-container">
+        <h1>
+            <img src="{{ url_for('static', filename='icons/zotero-logo-512x123.svg') }}" alt="Zotero Logo" height="32">
+        </h1>
+        <input type="text" id="searchBox" placeholder="Search in page...">
+    </div>
 
     <ul id="fileList">
         {% for f in files %}
