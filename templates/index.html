@@ -31,12 +31,24 @@
     <script>
         // 搜索功能
         document.getElementById('searchBox').addEventListener('input', function () {
-            const searchTerm = this.value.toLowerCase();
-            const items = document.querySelectorAll('#fileList li');
+            const searchTerm = this.value.trim().toLowerCase();
 
-            items.forEach(function (item) {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
+            document.querySelectorAll('#fileList li').forEach(function (item) {
+                const anchor = item.querySelector('a');
+                const originalText = anchor.textContent;
+                const lowerText = originalText.toLowerCase();
+
+                if (searchTerm === "") {
+                    anchor.innerHTML = originalText;
+                    item.style.display = '';
+                    return;
+                }
+
+                if (lowerText.includes(searchTerm)) {
+                    // 高亮匹配的关键词
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    const highlightedText = originalText.replace(regex, `<span class="highlight">$1</span>`);
+                    anchor.innerHTML = highlightedText;
                     item.style.display = '';
                 } else {
                     item.style.display = 'none';
