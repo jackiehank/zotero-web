@@ -26,8 +26,9 @@ def view_file(filename):
     if filename.lower().endswith('.pdf'):
         # PDF.js 预览
         pdf_url = url_for('serve_file', filename=filename)
-        # pdf_url = quote(pdf_url, safe="/:?=&")  # URL 编码
-        return render_template('viewer.html', pdf_url=pdf_url)
+        # 获取不带路径的文件名（含扩展名）
+        pdf_title = os.path.basename(filename)
+        return render_template('viewer.html', pdf_url=pdf_url, pdf_title=pdf_title)
     else:
         # EPUB 先简单提供下载（可后续集成 epub.js）
         return f'<a href="{url_for("serve_file", filename=filename)}">Download EPUB</a>'
@@ -37,4 +38,4 @@ def serve_file(filename):
     return send_from_directory(ZOTERO_STORAGE, filename)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8080, debug=True)
