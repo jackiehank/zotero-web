@@ -2,83 +2,91 @@ import os
 import time
 import psutil
 import datetime
+from typing import Dict, List, Optional, Any, Union
 from flask import Flask, send_from_directory, render_template, url_for, jsonify
 from urllib.parse import quote
 
 try:
-    import gpiozero  # 树莓派温度监控
+    import gpiozero  # Raspberry Pi 温度监控支持
     HAS_GPIOZERO = True
 except ImportError:
     HAS_GPIOZERO = False
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ZOTERO_STORAGE = os.path.abspath(os.path.join(BASE_DIR, "../storage"))
+# 项目根目录和存储路径
+BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+ZOTERO_STORAGE: str = os.path.abspath(os.path.join(BASE_DIR, "../storage"))
 
-app = Flask(__name__, static_url_path='/static')
+# 初始化 Flask 应用
+app: Flask = Flask(__name__, static_url_path='/static')
 
-# 添加监控数据获取函数
-def get_system_info():
+# 文件列表缓存机制
+_file_cache: Optional[List[str]] = None
+_last_update: float = 0
+CACHE_TIMEOUT: int = 600  # 缓存超时时间（秒）
+
+
+def get_system_info() -> Dict[str, Any]:
+    """
+    获取系统运行状态信息，包括 CPU、内存、磁盘、网络等。
+
+    Returns:
+        Dict[str, Any]: 包含系统信息的字典。
+    """
     try:
-        # CPU信息
-        cpu_percent = psutil.cpu_percent(interval=1)
-        cpu_count = psutil.cpu_count(logical=False)
-        cpu_threads = psutil.cpu_count(logical=True)
-        
+        # CPU 信息
+        cpu_percent: float = psutil.cpu_percent(interval=1)
+        cpu_cores: Optional[int] = psutil.cpu_count(logical=False)
+        cpu_threads: Optional[int] = psutil.cpu_count(logical=True)
+
         # 内存信息
         mem = psutil.virtual_memory()
-        mem_total = round(mem.total / (1024 ** 3), 2)
-        mem_used = round(mem.used / (1024 ** 3), 2)
-        mem_percent = mem.percent
-        
-        # 磁盘信息 - 使用项目存储目录
+        mem_total: float = round(mem.total / (1024 ** 3), 2)
+        mem_used: float = round(mem.used / (1024 ** 3), 2)
+        mem_percent: float = mem.percent
+
+        # 磁盘信息（优先使用 Zotero 存储目录）
         try:
             disk = psutil.disk_usage(ZOTERO_STORAGE)
         except Exception:
             disk = psutil.disk_usage('/')
-        disk_total = round(disk.total / (1024 ** 3), 2)
-        disk_used = round(disk.used / (1024 ** 3), 2)
-        disk_percent = disk.percent
-        
+        disk_total: float = round(disk.total / (1024 ** 3), 2)
+        disk_used: float = round(disk.used / (1024 ** 3), 2)
+        disk_percent: float = disk.percent
+
         # 网络信息
         net = psutil.net_io_counters()
-        net_sent = round(net.bytes_sent / (1024 ** 2), 2)
-        net_recv = round(net.bytes_recv / (1024 ** 2), 2)
-        
-        # 系统信息
-        boot_time = datetime.datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
-        uptime_seconds = int(time.time()) - int(psutil.boot_time())
-        uptime = str(datetime.timedelta(seconds=uptime_seconds))
+        net_sent: float = round(net.bytes_sent / (1024 ** 2), 2)
+        net_recv: float = round(net.bytes_recv / (1024 ** 2), 2)
 
-        # 温度信息
-        temps = {}
+        # 启动时间 & 运行时间
+        boot_timestamp: float = psutil.boot_time()
+        boot_time: str = datetime.datetime.fromtimestamp(boot_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        uptime_seconds: int = int(time.time()) - int(boot_timestamp)
+        uptime: str = str(datetime.timedelta(seconds=uptime_seconds))
+
+        # CPU 温度
+        cpu_temp: Optional[float] = None
         if HAS_GPIOZERO:
-            # 树莓派温度监控
-            cpu_temp = gpiozero.CPUTemperature().temperature
-            temps['cpu'] = round(cpu_temp, 1)
+            cpu_temp = round(gpiozero.CPUTemperature().temperature, 1)
         else:
-            # 其他系统尝试通过 psutil 获取
             try:
                 temps = psutil.sensors_temperatures()
                 if 'coretemp' in temps:
-                    # 获取第一个核心温度
                     cpu_temp = temps['coretemp'][0].current
                 elif temps:
-                    # 获取第一个可用的温度传感器
                     first_sensor = list(temps.keys())[0]
                     cpu_temp = temps[first_sensor][0].current
-                else:
-                    cpu_temp = None
             except Exception:
-                cpu_temp = None
-        
-        # 添加项目特定信息
-        files_count = len(list_files())
-        
+                pass
+
+        # 项目信息
+        files_count: int = len(list_files())
+
         return {
             'status': 'success',
             'cpu': {
                 'percent': cpu_percent,
-                'cores': cpu_count,
+                'cores': cpu_cores,
                 'threads': cpu_threads
             },
             'memory': {
@@ -107,67 +115,106 @@ def get_system_info():
             'temperature': {
                 'cpu': cpu_temp,
                 'unit': '°C' if cpu_temp is not None else 'N/A'
-            },
+            }
         }
+
     except Exception as e:
         return {'status': 'error', 'message': str(e)}
 
-_file_cache = None
-_last_update = 0
-CACHE_TIMEOUT = 600  # 10 分钟
 
-def list_files():
+def list_files() -> List[str]:
+    """
+    列出 Zotero 存储目录下的所有 PDF 和 EPUB 文件，并进行缓存。
+
+    Returns:
+        List[str]: 文件相对路径列表。
+    """
     global _file_cache, _last_update
-    
-    current_time = time.time()
-    # 缓存有效且未超时
+
+    current_time: float = time.time()
     if _file_cache and current_time - _last_update < CACHE_TIMEOUT:
         return _file_cache
-    
-    files = []
+
+    files: List[str] = []
     for root, _, filenames in os.walk(ZOTERO_STORAGE):
         for f in filenames:
             if f.lower().endswith(('.pdf', '.epub')):
-                full_path = os.path.join(root, f)
-                rel_path = os.path.relpath(full_path, ZOTERO_STORAGE)
+                full_path: str = os.path.join(root, f)
+                rel_path: str = os.path.relpath(full_path, ZOTERO_STORAGE)
                 files.append(rel_path)
 
     _file_cache = sorted(files)
     _last_update = current_time
     return _file_cache
-    # return sorted(files)
+
 
 @app.route('/')
-def index():
-    files = list_files()
+def index() -> str:
+    """
+    主页路由，列出所有 PDF 和 EPUB 文件供浏览。
+
+    Returns:
+        str: 渲染后的 HTML 页面。
+    """
+    files: List[str] = list_files()
     return render_template('index.html', files=files)
 
+
 @app.route('/view/<path:filename>')
-def view_file(filename):
+def view_file(filename: str) -> str:
+    """
+    根据文件类型展示文件（PDF 预览或 EPUB 下载链接）。
+
+    Args:
+        filename (str): 相对于存储目录的文件路径。
+
+    Returns:
+        str: 渲染后的 HTML 页面或下载链接。
+    """
     if filename.lower().endswith('.pdf'):
-        # PDF.js 预览
-        pdf_url = url_for('serve_file', filename=filename)
-        # 获取不带路径的文件名（含扩展名）
-        pdf_title = os.path.basename(filename)
+        pdf_url: str = url_for('serve_file', filename=filename)
+        pdf_title: str = os.path.basename(filename)
         return render_template('viewer.html', pdf_url=pdf_url, pdf_title=pdf_title)
     else:
         # EPUB 先简单提供下载（可后续集成 epub.js）
         return f'<a href="{url_for("serve_file", filename=filename)}">Download EPUB</a>'
 
+
 @app.route('/file/<path:filename>')
-def serve_file(filename):
+def serve_file(filename: str):
+    """
+    提供存储目录中文件的访问服务。
+
+    Args:
+        filename (str): 相对于存储目录的文件路径。
+
+    Returns:
+        Response: 文件响应。
+    """
     return send_from_directory(ZOTERO_STORAGE, filename)
 
-# 监控页面路由
+
 @app.route('/monitor')
-def monitor():
-    # 直接渲染监控页面模板
+def monitor() -> str:
+    """
+    渲染系统监控页面。
+
+    Returns:
+        str: 渲染后的监控页面。
+    """
     return render_template('monitor.html')
 
-# 监控数据API路由
+
 @app.route('/monitor/system-info')
 def system_info():
+    """
+    返回 JSON 格式的系统信息。
+
+    Returns:
+        Response: JSON 响应。
+    """
     return jsonify(get_system_info())
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
