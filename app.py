@@ -112,7 +112,18 @@ def get_system_info():
     except Exception as e:
         return {'status': 'error', 'message': str(e)}
 
+_file_cache = None
+_last_update = 0
+CACHE_TIMEOUT = 600  # 10 分钟
+
 def list_files():
+    global _file_cache, _last_update
+    
+    current_time = time.time()
+    # 缓存有效且未超时
+    if _file_cache and current_time - _last_update < CACHE_TIMEOUT:
+        return _file_cache
+    
     files = []
     for root, _, filenames in os.walk(ZOTERO_STORAGE):
         for f in filenames:
@@ -120,7 +131,11 @@ def list_files():
                 full_path = os.path.join(root, f)
                 rel_path = os.path.relpath(full_path, ZOTERO_STORAGE)
                 files.append(rel_path)
-    return sorted(files)
+
+    _file_cache = sorted(files)
+    _last_update = current_time
+    return _file_cache
+    # return sorted(files)
 
 @app.route('/')
 def index():
