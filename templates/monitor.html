@@ -160,6 +160,49 @@
             padding: 15px;
             margin-bottom: 20px;
         }
+
+        /* 温度监控样式 */
+        /* 温度进度条样式 */
+        .temperature-bar {
+            height: 100%;
+            border-radius: 15px;
+            width: 0%;
+            transition: width 0.8s ease;
+            background: linear-gradient(90deg,
+                    #3498db,
+                    #2ecc71,
+                    #f1c40f,
+                    #e67e22,
+                    #e74c3c);
+            /* 完整的蓝-绿-黄-橙-红渐变 */
+            background-size: 100% 100%;
+        }
+
+        /* 为温度条添加渐变标记 */
+        .temperature-bar::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 60°C标记 */
+        .temperature-bar::after {
+            left: 60%;
+        }
+
+        /* 80°C标记 */
+        .temperature-bar::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.5);
+            left: 80%;
+        }
     </style>
 </head>
 
@@ -222,6 +265,18 @@
                 </div>
             </div>
 
+            <!-- 温度监控 -->
+            <div class="card">
+                <h2>CPU 温度</h2>
+                <div class="progress-container">
+                    <div class="temperature-bar" id="cpu-temp-bar"></div>
+                    <span id="cpu-temp-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span>当前温度: <span id="cpu-temp">-</span></span>
+                </div>
+            </div>
+
             <!-- 网络 监控 -->
             <div class="card">
                 <h2>网络流量</h2>
@@ -274,6 +329,30 @@
                         document.getElementById('disk-used').textContent = data.disk.used;
                         document.getElementById('disk-total').textContent = data.disk.total;
                         document.getElementById('disk-path').textContent = data.disk.path;
+
+                        // 更新温度信息
+                        const cpuTemp = data.temperature.cpu;
+                        if (cpuTemp !== null && cpuTemp !== undefined) {
+                            document.getElementById('cpu-temp').textContent = cpuTemp + ' °C';
+                            document.getElementById('cpu-temp-value').textContent = cpuTemp + ' °C';
+
+                            // 更新温度进度条
+                            const bar = document.getElementById('cpu-temp-bar');
+                            let percentage = Math.min(100, cpuTemp); // 假设温度范围0-100°C
+                            bar.style.width = percentage + '%';
+
+                            // 根据温度动态设置颜色
+                            if (cpuTemp > 80) {
+                                bar.style.background = '#e74c3c'; // 红色
+                            } else if (cpuTemp > 60) {
+                                bar.style.background = '#f39c12'; // 橙色
+                            } else {
+                                bar.style.background = '#3498db'; // 蓝色
+                            }
+                        } else {
+                            document.getElementById('cpu-temp').textContent = 'N/A';
+                            document.getElementById('cpu-temp-value').textContent = '不可用';
+                        }
 
                         // 更新网络信息
                         document.getElementById('net-sent').textContent = data.network.sent + ' MB';

@@ -5,6 +5,12 @@ import datetime
 from flask import Flask, send_from_directory, render_template, url_for, jsonify
 from urllib.parse import quote
 
+try:
+    import gpiozero  # 树莓派温度监控
+    HAS_GPIOZERO = True
+except ImportError:
+    HAS_GPIOZERO = False
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ZOTERO_STORAGE = os.path.abspath(os.path.join(BASE_DIR, "../storage"))
 
@@ -42,6 +48,28 @@ def get_system_info():
         boot_time = datetime.datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
         uptime_seconds = int(time.time()) - int(psutil.boot_time())
         uptime = str(datetime.timedelta(seconds=uptime_seconds))
+
+        # 温度信息
+        temps = {}
+        if HAS_GPIOZERO:
+            # 树莓派温度监控
+            cpu_temp = gpiozero.CPUTemperature().temperature
+            temps['cpu'] = round(cpu_temp, 1)
+        else:
+            # 其他系统尝试通过 psutil 获取
+            try:
+                temps = psutil.sensors_temperatures()
+                if 'coretemp' in temps:
+                    # 获取第一个核心温度
+                    cpu_temp = temps['coretemp'][0].current
+                elif temps:
+                    # 获取第一个可用的温度传感器
+                    first_sensor = list(temps.keys())[0]
+                    cpu_temp = temps[first_sensor][0].current
+                else:
+                    cpu_temp = None
+            except Exception:
+                cpu_temp = None
         
         # 添加项目特定信息
         files_count = len(list_files())
@@ -75,7 +103,11 @@ def get_system_info():
             'project': {
                 'files_count': files_count,
                 'storage_path': ZOTERO_STORAGE
-            }
+            },
+            'temperature': {
+                'cpu': cpu_temp,
+                'unit': '°C' if cpu_temp is not None else 'N/A'
+            },
         }
     except Exception as e:
         return {'status': 'error', 'message': str(e)}
