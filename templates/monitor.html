@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器监控面板</title>
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='monitor.css') }}"> -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+
+        .progress-container {
+            height: 30px;
+            background: #ecf0f1;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 15px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-container span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .network-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .network-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .system-info p {
+            margin: 10px 0;
+            font-size: 0.95rem;
+        }
+
+        .update-time {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            padding: 10px;
+        }
+
+        .project-info {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .project-info h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .project-info p {
+            margin: 5px 0;
+            font-size: 0.95rem;
+        }
+
+        /* 添加导航链接样式 */
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .nav-links a {
+            margin-left: 15px;
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        /* 项目信息卡片 */
+        .project-info {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav-container">
+            <h1>服务器监控面板</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">返回文件列表</a>
+            </div>
+        </div>
+
+        <!-- 项目信息 -->
+        <div class="project-info">
+            <h3>项目信息</h3>
+            <p>存储路径: <span id="project-path">-</span></p>
+            <p>文件总数: <span id="project-files-count">0</span> (PDF/EPUB)</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- CPU 监控 -->
+            <div class="card">
+                <h2>CPU 使用率</h2>
+                <div class="progress-container">
+                    <div class="progress-bar" id="cpu-progress"></div>
+                    <span id="cpu-value">0%</span>
+                </div>
+                <div class="info-row">
+                    <span>物理核心: <span id="cpu-cores">0</span></span>
+                    <span>逻辑核心: <span id="cpu-threads">0</span></span>
+                </div>
+            </div>
+
+            <!-- 内存 监控 -->
+            <div class="card">
+                <h2>内存使用</h2>
+                <div class="progress-container">
+                    <div class="progress-bar" id="mem-progress"></div>
+                    <span id="mem-value">0%</span>
+                </div>
+                <div class="info-row">
+                    <span>已用: <span id="mem-used">0</span> GB</span>
+                    <span>总计: <span id="mem-total">0</span> GB</span>
+                </div>
+            </div>
+
+            <!-- 磁盘 监控 -->
+            <div class="card">
+                <h2>磁盘使用</h2>
+                <div class="progress-container">
+                    <div class="progress-bar" id="disk-progress"></div>
+                    <span id="disk-value">0%</span>
+                </div>
+                <div class="info-row">
+                    <span>已用: <span id="disk-used">0</span> GB</span>
+                    <span>总计: <span id="disk-total">0</span> GB</span>
+                </div>
+                <div class="info-row">
+                    <span>路径: <span id="disk-path">-</span></span>
+                </div>
+            </div>
+
+            <!-- 网络 监控 -->
+            <div class="card">
+                <h2>网络流量</h2>
+                <div class="network-container">
+                    <div class="network-item">
+                        <span>上传:</span>
+                        <span id="net-sent">0 MB</span>
+                    </div>
+                    <div class="network-item">
+                        <span>下载:</span>
+                        <span id="net-recv">0 MB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统信息 -->
+            <div class="card">
+                <h2>系统信息</h2>
+                <div class="system-info">
+                    <p>启动时间: <span id="boot-time">-</span></p>
+                    <p>运行时间: <span id="uptime">-</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="update-time">最后更新: <span id="update-time">-</span></div>
+    </div>
+
+    <script>
+        function updateSystemInfo() {
+            fetch('/monitor/system-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 更新CPU信息
+                        document.getElementById('cpu-value').textContent = data.cpu.percent + '%';
+                        document.getElementById('cpu-progress').style.width = data.cpu.percent + '%';
+                        document.getElementById('cpu-cores').textContent = data.cpu.cores;
+                        document.getElementById('cpu-threads').textContent = data.cpu.threads;
+
+                        // 更新内存信息
+                        document.getElementById('mem-value').textContent = data.memory.percent + '%';
+                        document.getElementById('mem-progress').style.width = data.memory.percent + '%';
+                        document.getElementById('mem-used').textContent = data.memory.used;
+                        document.getElementById('mem-total').textContent = data.memory.total;
+
+                        // 更新磁盘信息
+                        document.getElementById('disk-value').textContent = data.disk.percent + '%';
+                        document.getElementById('disk-progress').style.width = data.disk.percent + '%';
+                        document.getElementById('disk-used').textContent = data.disk.used;
+                        document.getElementById('disk-total').textContent = data.disk.total;
+                        document.getElementById('disk-path').textContent = data.disk.path;
+
+                        // 更新网络信息
+                        document.getElementById('net-sent').textContent = data.network.sent + ' MB';
+                        document.getElementById('net-recv').textContent = data.network.recv + ' MB';
+
+                        // 更新系统信息
+                        document.getElementById('boot-time').textContent = data.system.boot_time;
+                        document.getElementById('uptime').textContent = data.system.uptime;
+
+                        // 更新项目信息
+                        document.getElementById('project-path').textContent = data.project.storage_path;
+                        document.getElementById('project-files-count').textContent = data.project.files_count;
+
+                        // 更新最后刷新时间
+                        document.getElementById('update-time').textContent = new Date().toLocaleTimeString();
+                    } else {
+                        console.error('监控数据获取失败:', data.message);
+                        document.getElementById('update-time').textContent = '错误: ' + data.message;
+                    }
+                })
+                .catch(error => {
+                    console.error('获取数据失败:', error);
+                    document.getElementById('update-time').textContent = '错误: ' + error.message;
+                });
+        }
+
+        // 初始加载
+        updateSystemInfo();
+
+        // 每3秒刷新一次
+        setInterval(updateSystemInfo, 3000);
+    </script>
+</body>
+
+</html>

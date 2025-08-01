@@ -1,11 +1,85 @@
 import os
-from flask import Flask, send_from_directory, render_template, url_for
+import time
+import psutil
+import datetime
+from flask import Flask, send_from_directory, render_template, url_for, jsonify
 from urllib.parse import quote
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ZOTERO_STORAGE = os.path.abspath(os.path.join(BASE_DIR, "../storage"))
 
 app = Flask(__name__, static_url_path='/static')
+
+# 添加监控数据获取函数
+def get_system_info():
+    try:
+        # CPU信息
+        cpu_percent = psutil.cpu_percent(interval=1)
+        cpu_count = psutil.cpu_count(logical=False)
+        cpu_threads = psutil.cpu_count(logical=True)
+        
+        # 内存信息
+        mem = psutil.virtual_memory()
+        mem_total = round(mem.total / (1024 ** 3), 2)
+        mem_used = round(mem.used / (1024 ** 3), 2)
+        mem_percent = mem.percent
+        
+        # 磁盘信息 - 使用项目存储目录
+        try:
+            disk = psutil.disk_usage(ZOTERO_STORAGE)
+        except Exception:
+            disk = psutil.disk_usage('/')
+        disk_total = round(disk.total / (1024 ** 3), 2)
+        disk_used = round(disk.used / (1024 ** 3), 2)
+        disk_percent = disk.percent
+        
+        # 网络信息
+        net = psutil.net_io_counters()
+        net_sent = round(net.bytes_sent / (1024 ** 2), 2)
+        net_recv = round(net.bytes_recv / (1024 ** 2), 2)
+        
+        # 系统信息
+        boot_time = datetime.datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+        uptime_seconds = int(time.time()) - int(psutil.boot_time())
+        uptime = str(datetime.timedelta(seconds=uptime_seconds))
+        
+        # 添加项目特定信息
+        files_count = len(list_files())
+        
+        return {
+            'status': 'success',
+            'cpu': {
+                'percent': cpu_percent,
+                'cores': cpu_count,
+                'threads': cpu_threads
+            },
+            'memory': {
+                'total': mem_total,
+                'used': mem_used,
+                'percent': mem_percent
+            },
+            'disk': {
+                'total': disk_total,
+                'used': disk_used,
+                'percent': disk_percent,
+                'path': ZOTERO_STORAGE
+            },
+            'network': {
+                'sent': net_sent,
+                'recv': net_recv
+            },
+            'system': {
+                'boot_time': boot_time,
+                'uptime': uptime
+            },
+            'project': {
+                'files_count': files_count,
+                'storage_path': ZOTERO_STORAGE
+            }
+        }
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
+
 def list_files():
     files = []
     for root, _, filenames in os.walk(ZOTERO_STORAGE):
@@ -37,5 +111,16 @@ def view_file(filename):
 def serve_file(filename):
     return send_from_directory(ZOTERO_STORAGE, filename)
 
+# 监控页面路由
+@app.route('/monitor')
+def monitor():
+    # 直接渲染监控页面模板
+    return render_template('monitor.html')
+
+# 监控数据API路由
+@app.route('/monitor/system-info')
+def system_info():
+    return jsonify(get_system_info())
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8080, debug=True)
