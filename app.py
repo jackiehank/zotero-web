@@ -28,12 +28,22 @@ CACHE_TIMEOUT: int = 600  # 缓存超时时间（秒）
 
 
 class FileChangeHandler(FileSystemEventHandler):
-    def on_modified(self, event):
-        if event.is_directory and event.src_path == ZOTERO_STORAGE:
-            # 目录发生改变时刷新缓存
+    def _invalidate_cache_if_in_storage(self, src_path):
+        if src_path.startswith(ZOTERO_STORAGE):
             global _file_cache, _last_update
-            _file_cache = None  # 使缓存失效
-            _last_update = 0  # 使更新时间失效
+            _file_cache = None
+            _last_update = 0
+
+    def on_created(self, event):
+        self._invalidate_cache_if_in_storage(event.src_path)
+
+    def on_deleted(self, event):
+        self._invalidate_cache_if_in_storage(event.src_path)
+
+    def on_moved(self, event):
+        self._invalidate_cache_if_in_storage(event.src_path)
+        # 注意：移动可能涉及 dest_path
+        self._invalidate_cache_if_in_storage(event.dest_path)
 
 
 def start_file_watcher():
