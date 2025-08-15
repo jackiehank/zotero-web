@@ -284,4 +284,4 @@ def page_not_found(e):
 if __name__ == '__main__':
     # 启动文件监控
     start_file_watcher()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=False)
