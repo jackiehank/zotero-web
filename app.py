@@ -167,7 +167,10 @@ def list_files() -> List[str]:
                 if f.lower().endswith(('.pdf', '.epub')):
                     full_path: str = os.path.join(root, f)
                     rel_path: str = os.path.relpath(full_path, ZOTERO_STORAGE)
-                    files.append(rel_path)
+                    # 跨平台：转为正斜杠，用于 URL
+                    url_compatible_path = rel_path.replace(os.sep, '/')
+                    files.append(url_compatible_path)
+                    # files.append(rel_path)
 
         _file_cache = sorted(files)
         _last_update = time.time()
