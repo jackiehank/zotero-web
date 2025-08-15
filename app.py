@@ -26,6 +26,9 @@ _file_cache: Optional[List[str]] = None
 _last_update: float = 0
 CACHE_TIMEOUT: int = 600  # 缓存超时时间（秒）
 
+# 存储最近访问的文件
+_recent_files: List[str] = []
+NUM_RECENT_FILES: int = 5  # 最近访问文件数量限制
 
 class FileChangeHandler(FileSystemEventHandler):
     def _invalidate_cache_if_in_storage(self, src_path):
@@ -153,11 +156,12 @@ def get_system_info() -> Dict[str, Any]:
 def list_files() -> List[str]:
     """
     列出 Zotero 存储目录下的所有 PDF 和 EPUB 文件，并进行缓存。
+    记录最近访问的文件，最近的文件会显示在列表的最前端。
 
     Returns:
         List[str]: 文件相对路径列表。
     """
-    global _file_cache, _last_update
+    global _file_cache, _last_update, _recent_files
 
     # 如果缓存失效，则重新列出文件
     if (_file_cache is None or _last_update == 0 or (time.time() - _last_update) > CACHE_TIMEOUT):
@@ -175,7 +179,12 @@ def list_files() -> List[str]:
         _file_cache = sorted(files)
         _last_update = time.time()
 
-    return _file_cache
+    # 将最近访问的文件排在文件列表最前面
+    # 确保文件只出现在一次（避免重复）
+    recent_files = _recent_files[:NUM_RECENT_FILES]  # 取最近的NUM_RECENT_FILES个文件
+    remaining_files = [file for file in _file_cache if file not in _recent_files]
+
+    return recent_files + remaining_files
 
 
 @app.route('/')
@@ -193,7 +202,7 @@ def index() -> str:
 @app.route('/view/<path:filename>')
 def view_file(filename: str) -> str:
     """
-    根据文件类型展示文件（PDF 预览或 EPUB 下载链接）。
+    根据文件类型展示文件（PDF 预览或 EPUB 下载链接）,并记录最近访问的文件。
 
     Args:
         filename (str): 相对于存储目录的文件路径。
@@ -201,6 +210,15 @@ def view_file(filename: str) -> str:
     Returns:
         str: 渲染后的 HTML 页面或下载链接。
     """
+    global _recent_files
+    # 如果已存在，先删除
+    if filename in _recent_files:
+        _recent_files.remove(filename)
+    # 总是插入到最前面
+    _recent_files.insert(0, filename)
+    # 再截断
+    _recent_files = _recent_files[:NUM_RECENT_FILES]
+
     if filename.lower().endswith('.pdf'):
         pdf_url: str = url_for('serve_file', filename=filename)
         pdf_title: str = os.path.basename(filename)
