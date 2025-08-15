@@ -5,6 +5,8 @@ import datetime
 from typing import Dict, List, Optional, Any, Union
 from flask import Flask, send_from_directory, render_template, url_for, jsonify
 from urllib.parse import quote
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 try:
     import gpiozero  # Raspberry Pi 温度监控支持
@@ -23,6 +25,22 @@ app: Flask = Flask(__name__, static_url_path='/static')
 _file_cache: Optional[List[str]] = None
 _last_update: float = 0
 CACHE_TIMEOUT: int = 600  # 缓存超时时间（秒）
+
+
+class FileChangeHandler(FileSystemEventHandler):
+    def on_modified(self, event):
+        if event.is_directory and event.src_path == ZOTERO_STORAGE:
+            # 目录发生改变时刷新缓存
+            global _file_cache, _last_update
+            _file_cache = None  # 使缓存失效
+            _last_update = 0  # 使更新时间失效
+
+
+def start_file_watcher():
+    event_handler = FileChangeHandler()
+    observer = Observer()
+    observer.schedule(event_handler, path=ZOTERO_STORAGE, recursive=True)
+    observer.start()
 
 
 def get_system_info() -> Dict[str, Any]:
@@ -131,20 +149,19 @@ def list_files() -> List[str]:
     """
     global _file_cache, _last_update
 
-    current_time: float = time.time()
-    if _file_cache and current_time - _last_update < CACHE_TIMEOUT:
-        return _file_cache
+    # 如果缓存失效，则重新列出文件
+    if _file_cache is None or _last_update == 0:
+        files: List[str] = []
+        for root, _, filenames in os.walk(ZOTERO_STORAGE):
+            for f in filenames:
+                if f.lower().endswith(('.pdf', '.epub')):
+                    full_path: str = os.path.join(root, f)
+                    rel_path: str = os.path.relpath(full_path, ZOTERO_STORAGE)
+                    files.append(rel_path)
 
-    files: List[str] = []
-    for root, _, filenames in os.walk(ZOTERO_STORAGE):
-        for f in filenames:
-            if f.lower().endswith(('.pdf', '.epub')):
-                full_path: str = os.path.join(root, f)
-                rel_path: str = os.path.relpath(full_path, ZOTERO_STORAGE)
-                files.append(rel_path)
+        _file_cache = sorted(files)
+        _last_update = time.time()
 
-    _file_cache = sorted(files)
-    _last_update = current_time
     return _file_cache
 
 
@@ -217,4 +234,6 @@ def system_info():
 
 
 if __name__ == '__main__':
+    # 启动文件监控
+    start_file_watcher()
     app.run(host='0.0.0.0', port=8080, debug=False)
