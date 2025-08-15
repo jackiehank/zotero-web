@@ -3,7 +3,7 @@ import time
 import psutil
 import datetime
 from typing import Dict, List, Optional, Any, Union
-from flask import Flask, send_from_directory, render_template, url_for, jsonify
+from flask import Flask, abort, send_from_directory, render_template, url_for, jsonify
 from urllib.parse import quote
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -211,6 +211,18 @@ def view_file(filename: str) -> str:
         str: 渲染后的 HTML 页面或下载链接。
     """
     global _recent_files
+
+    # 构造完整文件路径
+    file_path = os.path.join(ZOTERO_STORAGE, filename)
+
+    # 安全检查：防止路径穿越（如 ../../etc/passwd）
+    if not os.path.realpath(file_path).startswith(os.path.realpath(ZOTERO_STORAGE)):
+        abort(403)  # Forbidden
+
+    # 存在性检查：文件必须存在
+    if not os.path.isfile(file_path):
+        abort(404)  # Not Found
+
     # 如果已存在，先删除
     if filename in _recent_files:
         _recent_files.remove(filename)
@@ -264,7 +276,12 @@ def system_info():
     return jsonify(get_system_info())
 
 
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+
 if __name__ == '__main__':
     # 启动文件监控
     start_file_watcher()
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8080, debug=True)
