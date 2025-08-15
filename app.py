@@ -160,7 +160,7 @@ def list_files() -> List[str]:
     global _file_cache, _last_update
 
     # 如果缓存失效，则重新列出文件
-    if _file_cache is None or _last_update == 0:
+    if (_file_cache is None or _last_update == 0 or (time.time() - _last_update) > CACHE_TIMEOUT):
         files: List[str] = []
         for root, _, filenames in os.walk(ZOTERO_STORAGE):
             for f in filenames:
