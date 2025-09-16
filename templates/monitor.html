@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>服务器监控面板</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='monitor.css') }}">
+    <link rel="stylesheet" href="/static/monitor.css">
     <!-- <style>
     </style> -->
 </head>
@@ -15,7 +15,7 @@
         <div class="nav-container">
             <h1>服务器监控面板</h1>
             <div class="nav-links">
-                <a href="{{ url_for('index') }}">返回文件列表</a>
+                <a href="{{ request.app.router['index'].url_for() }}">返回文件列表</a>
             </div>
         </div>
 

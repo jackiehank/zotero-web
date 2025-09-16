@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1">
     <title>Zotero Library</title>
-    <link rel="icon" href="{{ url_for('static', filename='icons/zotero_128x128x32.png') }}" type="image/png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <link rel="icon" href="/static/icons/zotero_128x128x32.png" type="image/png">
+    <link rel="stylesheet" href="/static/index.css">
     <style>
 
     </style>
@@ -14,19 +14,18 @@
 <body>
     <div class="header-container">
         <h1>
-            <img src="{{ url_for('static', filename='icons/zotero-logo-512x123.svg') }}" alt="Zotero Logo"
-                style="height: 2rem;">
+            <img src="/static/icons/zotero-logo-512x123.svg" alt="Zotero Logo" style="height: 2rem;">
         </h1>
         <input type="text" id="searchBox" placeholder="Search in page...">
     </div>
 
     <div style="text-align: right; margin-bottom: 20px;">
-        <a href="{{ url_for('monitor') }}">查看服务器监控</a>
+        <a href="{{ request.app.router['monitor'].url_for() }}">查看服务器监控</a>
     </div>
 
     <ul id="fileList">
         {% for f in files %}
-        <li><a href="{{ url_for('view_file', filename=f) }}">{{ f }}</a></li>
+        <li><a href="{{ request.app.router['view_file'].url_for(filename=f) }}">{{ f }}</a></li>
         {% endfor %}
     </ul>
 

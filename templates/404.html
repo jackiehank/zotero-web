@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1">
     <title>404</title>
-    <link rel="icon" href="{{ url_for('static', filename='icons/zotero_128x128x32.png') }}" type="image/png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <link rel="icon" href="/static/icons/zotero_128x128x32.png" type="image/png">
+    <link rel="stylesheet" href="/static/index.css">
     <style>
 
     </style>
@@ -14,11 +14,10 @@
 <body>
     <div class="header-container">
         <h1>
-            <img src="{{ url_for('static', filename='icons/zotero-logo-512x123.svg') }}" alt="Zotero Logo"
-                style="height: 2rem;">
+            <img src="/static/icons/zotero-logo-512x123.svg" alt="Zotero Logo" style="height: 2rem;">
         </h1>
         <h1 style="color: red; font-size: 1.5rem; margin: 3rem;">404 - 页面未找到</h1>
-        <a href="{{ url_for('index') }}">返回文件列表</a>
+        <a href="{{ request.app.router['index'].url_for() }}">返回文件列表</a>
     </div>
 
 </body>
