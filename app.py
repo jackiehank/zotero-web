@@ -207,7 +207,7 @@ async def view_file(request):
             "pdf_title": os.path.basename(filename),
             "request": request,
         }
-        return aiohttp_jinja2.render_template("viewer.html", request, context)
+        return aiohttp_jinja2.render_template("pdfviewer.html", request, context)
     else:
         epub_url = request.app.router["serve_file"].url_for(filename=filename)
         return web.Response(
