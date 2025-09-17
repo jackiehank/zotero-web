@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import time
 import psutil
@@ -200,6 +201,7 @@ async def view_file(request):
     _recent_files.insert(0, filename)
     _recent_files = _recent_files[:NUM_RECENT_FILES]
 
+    # 生成完整的绝对URL
     if filename.lower().endswith(".pdf"):
         pdf_url = request.app.router["serve_file"].url_for(filename=filename)
         context = {
@@ -208,23 +210,142 @@ async def view_file(request):
             "request": request,
         }
         return aiohttp_jinja2.render_template("pdfviewer.html", request, context)
-    else:
-        epub_url = request.app.router["serve_file"].url_for(filename=filename)
-        return web.Response(
-            text=f'<a href="{epub_url}">Download EPUB</a>', content_type="text/html"
-        )
+    elif filename.lower().endswith(".epub"):
+        # 生成完整的绝对URL - 关键修复：确保URL正确编码
+        base_url = f"{request.scheme}://{request.host}"
+
+        # 对文件名进行双重编码，确保EPUB查看器接收到的URL是编码过的
+        # 这样EPUB.js就不需要解码，可以直接使用
+        encoded_filename = quote(quote(filename, safe=""))
+        epub_url = f"{base_url}/file/{encoded_filename}"
+
+        context = {
+            "epub_url": epub_url,
+            "epub_title": os.path.basename(filename),
+            "request": request,
+        }
+        return aiohttp_jinja2.render_template("epubviewer.html", request, context)
 
 
 async def serve_file(request):
     """提供文件服务"""
     filename = request.match_info["filename"]
-    file_path = os.path.join(ZOTERO_STORAGE, filename)
 
-    # 安全检查
-    if not os.path.realpath(file_path).startswith(os.path.realpath(ZOTERO_STORAGE)):
+    # 对文件名进行URL解码
+    from urllib.parse import unquote
+
+    decoded_filename = unquote(filename)
+
+    file_path = os.path.join(ZOTERO_STORAGE, decoded_filename)
+
+    # print(f"[DEBUG] 原始文件名参数: {filename}")
+    # print(f"[DEBUG] 解码后文件名: {decoded_filename}")
+    # print(f"[DEBUG] 完整文件路径: {file_path}")
+    # print(f"[DEBUG] 文件存在: {os.path.exists(file_path)}")
+
+    # 安全检查 - 使用规范化路径比较
+    real_file_path = os.path.realpath(file_path)
+    real_storage_path = os.path.realpath(ZOTERO_STORAGE)
+
+    # print(f"[DEBUG] 规范化文件路径: {real_file_path}")
+    # print(f"[DEBUG] 规范化存储路径: {real_storage_path}")
+
+    if not real_file_path.startswith(real_storage_path):
+        # print(f"[SECURITY] 路径越界: {real_file_path} (存储路径: {real_storage_path})")
         return web.Response(text="Forbidden", status=403)
 
-    return web.FileResponse(file_path)
+    # 存在性检查
+    if not os.path.isfile(file_path):
+        # print(f"[ERROR] 文件不存在: {file_path}")
+        return web.Response(text="Not Found", status=404)
+
+    # 确保文件路径用引号包裹，特别是在日志中
+    # print(f"[DEBUG] 访问文件: '{file_path}'")
+
+    content_type, _ = mimetypes.guess_type(file_path)
+    if content_type is None:
+        content_type = "application/octet-stream"
+
+    # print(f"[DEBUG] 文件: {filename}, Content-Type: {content_type}")
+
+    # 添加CORS头
+    headers = {
+        "Content-Type": content_type,
+        "Content-Disposition": "inline",  # 告诉浏览器内联显示而不是下载
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",  # 允许所有来源
+        "Access-Control-Allow-Methods": "GET, OPTIONS",  # 允许的方法
+        "Access-Control-Allow-Headers": "Range, Accept, Origin, Content-Type",
+        "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
+    # 处理OPTIONS预检请求
+    if request.method == "OPTIONS":
+        return web.Response(status=200, headers=headers)
+
+    # 添加范围请求支持
+    if "Range" in request.headers:
+        range_header = request.headers["Range"]
+        # 处理范围请求
+        file_size = os.path.getsize(file_path)
+        start, end = 0, file_size - 1
+
+        # 解析范围请求
+        if range_header.startswith("bytes="):
+            range_str = range_header[6:]
+            ranges = range_str.split("-")
+
+            if ranges[0]:
+                start = int(ranges[0])
+            if len(ranges) > 1 and ranges[1]:
+                end = int(ranges[1])
+
+            content_length = end - start + 1
+
+            headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+            headers["Content-Length"] = str(content_length)
+
+            # 使用文件范围响应
+            resp = web.Response(status=206, headers=headers)
+            resp.enable_chunked_encoding()
+
+            with open(file_path, "rb") as f:
+                f.seek(start)
+                data = f.read(content_length)
+                resp.body = data
+
+            return resp
+
+    # 使用FileResponse提供文件
+    return web.FileResponse(file_path, headers=headers)
+
+
+async def debug_url(request):
+    """调试URL编码/解码"""
+    filename = request.match_info.get("filename", "")
+
+    from urllib.parse import quote, unquote
+
+    # 显示各种编码/解码结果
+    original = filename
+    once_encoded = quote(original, safe="")
+    twice_encoded = quote(once_encoded, safe="")
+
+    once_decoded = unquote(original)
+    twice_decoded = unquote(once_decoded)
+
+    return web.json_response(
+        {
+            "original": original,
+            "once_encoded": once_encoded,
+            "twice_encoded": twice_encoded,
+            "once_decoded": once_decoded,
+            "twice_decoded": twice_decoded,
+        }
+    )
 
 
 @aiohttp_jinja2.template("monitor.html")
@@ -263,9 +384,22 @@ def static_url(filename):
     return _static_url
 
 
+@web.middleware
+async def log_middleware(request, handler):
+    # print(f"[REQ] {request.method} {request.path_qs}")
+    try:
+        response = await handler(request)
+        # print(f"[RESP] {response.status} {response.content_type}")
+        return response
+    except Exception as e:
+        # print(f"[ERROR] {e}", flush=True)
+        raise
+
+
 def init_app():
     """初始化应用"""
-    app = web.Application()
+    # app = web.Application()
+    app = web.Application(middlewares=[log_middleware])
 
     # 设置Jinja2模板
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader("templates"))
@@ -283,8 +417,12 @@ def init_app():
     app.router.add_get("/", index, name="index")
     app.router.add_get("/view/{filename:.+}", view_file, name="view_file")
     app.router.add_get("/file/{filename:.+}", serve_file, name="serve_file")
+    app.router.add_options("/file/{filename:.+}", serve_file)  # 添加OPTIONS方法支持
     app.router.add_get("/monitor", monitor, name="monitor")
     app.router.add_get("/monitor/system-info", system_info, name="system_info")
+    # app.router.add_get(
+    #     "/debug/{filename:.+}", debug_url, name="debug_url"
+    # )  # 新增调试端点
 
     # 添加静态文件路由
     app.router.add_static("/static/", path="static", name="static")
@@ -301,4 +439,10 @@ if __name__ == "__main__":
 
     # 启动aiohttp服务器
     app = init_app()
-    web.run_app(app, host="0.0.0.0", port=8080)
+    web.run_app(
+        app,
+        host="0.0.0.0",
+        port=8080,
+        access_log=None,  # 先关掉默认简略日志
+        # print=lambda *a: print("[aiohttp]", *a)  # 自定义输出前缀
+    )
