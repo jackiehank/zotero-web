@@ -1,0 +1,97 @@
+#!/bin/bash
+
+APP_DIR="$HOME/Zotero/web"
+LOG_FILE="$APP_DIR/zweb.log"
+PID_FILE="$APP_DIR/zweb.pid"
+CMD="uv run python app.py"
+
+start_app() {
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p $PID > /dev/null; then
+            echo "zotero-web 应用已经在运行 (PID: $PID)"
+            return 1
+        else
+            echo "发现旧的 PID 文件，正在清理..."
+            rm -f "$PID_FILE"
+        fi
+    fi
+
+    echo "正在启动 zotero-web 应用..."
+    cd "$APP_DIR" || { echo "无法进入目录 $APP_DIR"; exit 1; }
+    nohup $CMD >> "$LOG_FILE" 2>&1 &
+
+    # 保存 PID
+    echo $! > "$PID_FILE"
+    echo "zotero-web 应用已启动，PID: $!"
+    echo "日志输出到: $LOG_FILE"
+}
+
+stop_app() {
+    if [ ! -f "$PID_FILE" ]; then
+        echo "未找到 PID 文件，可能 zotero-web 没有运行。"
+        return 1
+    fi
+
+    PID=$(cat "$PID_FILE")
+    if ps -p $PID > /dev/null; then
+        echo "正在终止 zotero-web (PID: $PID)..."
+        kill $PID
+        rm -f "$PID_FILE"
+        echo "zotero-web 已终止。"
+    else
+        echo "PID $PID 不存在，可能 zotero-web 已停止。"
+        rm -f "$PID_FILE"
+    fi
+}
+
+status_app() {
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p $PID > /dev/null; then
+            # 获取 CPU 和内存使用率
+            CPU_USAGE=$(ps -p $PID -o %cpu | tail -n 1 | awk '{print $1"%"}')
+            MEM_USAGE=$(ps -p $PID -o %mem | tail -n 1 | awk '{print $1"%"}')
+            # 获取驻留内存 (RSS) 和虚拟内存 (VSZ)
+            MEM_RSS=$(ps -p $PID -o rss= | awk '{printf "%.1f MB", $1/1024}')
+            MEM_VSZ=$(ps -p $PID -o vsz= | awk '{printf "%.1f MB", $1/1024}')
+
+            echo "zotero-web 正在运行 (PID: $PID)"
+            echo "CPU 使用率: $CPU_USAGE | 内存使用率: $MEM_USAGE"
+            echo "物理内存: $MEM_RSS | 虚拟内存: $MEM_VSZ"
+        else
+            echo "zotero-web 未运行（残留 PID 文件）"
+        fi
+    else
+        echo "zotero-web 未运行"
+    fi
+}
+
+log_app() {
+    if [ ! -f "$LOG_FILE" ]; then
+        echo "日志文件不存在: $LOG_FILE"
+        return 1
+    fi
+
+    echo "正在实时查看日志文件: $LOG_FILE （按 Ctrl+C 退出）"
+    tail -f "$LOG_FILE"
+}
+
+case "$1" in
+    run)
+        start_app
+        ;;
+    stop)
+        stop_app
+        ;;
+    status)
+        status_app
+        ;;
+    log)
+        log_app
+        ;;
+    *)
+        echo "用法: $0 {run|stop|status|log}"
+        exit 1
+        ;;
+esac
