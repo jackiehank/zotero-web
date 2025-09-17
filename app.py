@@ -241,34 +241,34 @@ async def serve_file(request):
         file_path = os.path.join(ZOTERO_STORAGE, decoded_filename)
 
         # 打印详细的调试信息
-        print(f"[DEBUG] 原始文件名参数: {filename}")
-        print(f"[DEBUG] 解码后文件名: {decoded_filename}")
-        print(f"[DEBUG] 完整文件路径: '{file_path}'")
-        print(f"[DEBUG] 文件存在: {os.path.exists(file_path)}")
+        # print(f"[DEBUG] 原始文件名参数: {filename}")
+        # print(f"[DEBUG] 解码后文件名: {decoded_filename}")
+        # print(f"[DEBUG] 完整文件路径: '{file_path}'")
+        # print(f"[DEBUG] 文件存在: {os.path.exists(file_path)}")
 
         # 安全检查 - 使用规范化路径比较
         real_file_path = os.path.realpath(file_path)
         real_storage_path = os.path.realpath(ZOTERO_STORAGE)
 
-        print(f"[DEBUG] 规范化文件路径: '{real_file_path}'")
-        print(f"[DEBUG] 规范化存储路径: '{real_storage_path}'")
+        # print(f"[DEBUG] 规范化文件路径: '{real_file_path}'")
+        # print(f"[DEBUG] 规范化存储路径: '{real_storage_path}'")
 
         if not real_file_path.startswith(real_storage_path):
-            print(
-                f"[SECURITY] 路径越界: {real_file_path} (存储路径: {real_storage_path})"
-            )
+            # print(
+            #     f"[SECURITY] 路径越界: {real_file_path} (存储路径: {real_storage_path})"
+            # )
             return web.Response(text="Forbidden", status=403)
 
         # 存在性检查
         if not os.path.isfile(file_path):
-            print(f"[ERROR] 文件不存在: '{file_path}'")
+            # print(f"[ERROR] 文件不存在: '{file_path}'")
             return web.Response(text="Not Found", status=404)
 
         content_type, _ = mimetypes.guess_type(file_path)
         if content_type is None:
             content_type = "application/octet-stream"
 
-        print(f"[DEBUG] 文件: {filename}, Content-Type: {content_type}")
+        # print(f"[DEBUG] 文件: {filename}, Content-Type: {content_type}")
 
         # 添加CORS头
         headers = {
@@ -443,8 +443,8 @@ async def log_requests(request, handler):
 
 def init_app():
     """初始化应用"""
-    # app = web.Application()
-    app = web.Application(middlewares=[log_requests])
+    app = web.Application()
+    # app = web.Application(middlewares=[log_requests])
 
     # 设置Jinja2模板
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader("templates"))
