@@ -45,7 +45,11 @@ Zotero/web/
 - Zotero 文献管理软件
 - UV (推荐) 或 pip
 
-### 使用 UV (推荐)
+### 下载到`Zotero/`
+1. 进入`Zotero`文件夹
+2. git clone 本项目
+
+### 使用 UV 配置依赖(推荐)
 
 1. 安装 UV (如果尚未安装):
 ```bash
@@ -62,11 +66,11 @@ uv sync
 uv run python app.py
 ```
 
-### 使用 pip
+### 或者使用 pip 
 
 1. 安装依赖:
 ```bash
-pip install aiohttp aiohttp-jinja2 jinja2 watchdog psutil gpiozero
+pip install --user aiohttp aiohttp-jinja2 jinja2 watchdog psutil
 ```
 
 2. 运行应用:
