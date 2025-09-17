@@ -6,10 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ epub_title }}</title>
     <link rel="icon" href="/static/icons/epub.svg" type="image/svg+xml">
+    <script>
+        // 确保EPUB.js可以处理包含特殊字符的URL
+        document.addEventListener('DOMContentLoaded', function () {
+            const iframe = document.querySelector('iframe');
+            const epubUrl = "{{ epub_url }}";
+            console.log("EPUB URL:", epubUrl);
+
+            // 设置iframe的src，确保URL正确编码
+            iframe.src = `/static/epubjs/viewer.html?file=${encodeURIComponent(epubUrl)}`;
+        });
+    </script>
 </head>
 
 <body style="margin:0; padding:0; height:100vh;">
-    <iframe src="/static/epubjs/viewer.html?file={{ epub_url | urlencode }}" style="width:100%; height:100%; border:none;
+    <iframe style="width:100%; height:100%; border:none;
         touch-action: pan-y;"></iframe>
 </body>
 

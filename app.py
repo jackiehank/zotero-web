@@ -11,6 +11,7 @@ import jinja2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from urllib.parse import quote
+import aiofiles
 
 try:
     import gpiozero
@@ -201,24 +202,24 @@ async def view_file(request):
     _recent_files.insert(0, filename)
     _recent_files = _recent_files[:NUM_RECENT_FILES]
 
-    # 生成完整的绝对URL
+    # 生成完整的绝对URL - 统一处理PDF和EPUB的URL
+    base_url = f"{request.scheme}://{request.host}"
+
+    # 对文件名进行URL编码（只编码一次，使用安全字符集）
+    encoded_filename = quote(filename, safe="")
+
     if filename.lower().endswith(".pdf"):
-        pdf_url = request.app.router["serve_file"].url_for(filename=filename)
+        # 使用与Flask时期相似的编码方式
+        pdf_url = f"{base_url}/file/{encoded_filename}"
         context = {
-            "pdf_url": str(pdf_url),
+            "pdf_url": pdf_url,
             "pdf_title": os.path.basename(filename),
             "request": request,
         }
         return aiohttp_jinja2.render_template("pdfviewer.html", request, context)
     elif filename.lower().endswith(".epub"):
-        # 生成完整的绝对URL - 关键修复：确保URL正确编码
-        base_url = f"{request.scheme}://{request.host}"
-
-        # 对文件名进行双重编码，确保EPUB查看器接收到的URL是编码过的
-        # 这样EPUB.js就不需要解码，可以直接使用
-        encoded_filename = quote(quote(filename, safe=""))
+        # 使用相同的编码方式
         epub_url = f"{base_url}/file/{encoded_filename}"
-
         context = {
             "epub_url": epub_url,
             "epub_title": os.path.basename(filename),
@@ -229,98 +230,136 @@ async def view_file(request):
 
 async def serve_file(request):
     """提供文件服务"""
-    filename = request.match_info["filename"]
+    try:
+        filename = request.match_info["filename"]
 
-    # 对文件名进行URL解码
-    from urllib.parse import unquote
+        # 对文件名进行URL解码
+        from urllib.parse import unquote
 
-    decoded_filename = unquote(filename)
+        decoded_filename = unquote(filename)
 
-    file_path = os.path.join(ZOTERO_STORAGE, decoded_filename)
+        file_path = os.path.join(ZOTERO_STORAGE, decoded_filename)
 
-    # print(f"[DEBUG] 原始文件名参数: {filename}")
-    # print(f"[DEBUG] 解码后文件名: {decoded_filename}")
-    # print(f"[DEBUG] 完整文件路径: {file_path}")
-    # print(f"[DEBUG] 文件存在: {os.path.exists(file_path)}")
+        # 打印详细的调试信息
+        print(f"[DEBUG] 原始文件名参数: {filename}")
+        print(f"[DEBUG] 解码后文件名: {decoded_filename}")
+        print(f"[DEBUG] 完整文件路径: '{file_path}'")
+        print(f"[DEBUG] 文件存在: {os.path.exists(file_path)}")
 
-    # 安全检查 - 使用规范化路径比较
-    real_file_path = os.path.realpath(file_path)
-    real_storage_path = os.path.realpath(ZOTERO_STORAGE)
+        # 安全检查 - 使用规范化路径比较
+        real_file_path = os.path.realpath(file_path)
+        real_storage_path = os.path.realpath(ZOTERO_STORAGE)
 
-    # print(f"[DEBUG] 规范化文件路径: {real_file_path}")
-    # print(f"[DEBUG] 规范化存储路径: {real_storage_path}")
+        print(f"[DEBUG] 规范化文件路径: '{real_file_path}'")
+        print(f"[DEBUG] 规范化存储路径: '{real_storage_path}'")
 
-    if not real_file_path.startswith(real_storage_path):
-        # print(f"[SECURITY] 路径越界: {real_file_path} (存储路径: {real_storage_path})")
-        return web.Response(text="Forbidden", status=403)
+        if not real_file_path.startswith(real_storage_path):
+            print(
+                f"[SECURITY] 路径越界: {real_file_path} (存储路径: {real_storage_path})"
+            )
+            return web.Response(text="Forbidden", status=403)
 
-    # 存在性检查
-    if not os.path.isfile(file_path):
-        # print(f"[ERROR] 文件不存在: {file_path}")
-        return web.Response(text="Not Found", status=404)
+        # 存在性检查
+        if not os.path.isfile(file_path):
+            print(f"[ERROR] 文件不存在: '{file_path}'")
+            return web.Response(text="Not Found", status=404)
 
-    # 确保文件路径用引号包裹，特别是在日志中
-    # print(f"[DEBUG] 访问文件: '{file_path}'")
+        content_type, _ = mimetypes.guess_type(file_path)
+        if content_type is None:
+            content_type = "application/octet-stream"
 
-    content_type, _ = mimetypes.guess_type(file_path)
-    if content_type is None:
-        content_type = "application/octet-stream"
+        print(f"[DEBUG] 文件: {filename}, Content-Type: {content_type}")
 
-    # print(f"[DEBUG] 文件: {filename}, Content-Type: {content_type}")
+        # 添加CORS头
+        headers = {
+            "Content-Type": content_type,
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Range, Accept, Origin, Content-Type",
+            "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges",
+        }
 
-    # 添加CORS头
-    headers = {
-        "Content-Type": content_type,
-        "Content-Disposition": "inline",  # 告诉浏览器内联显示而不是下载
-        "Accept-Ranges": "bytes",
-        "Access-Control-Allow-Origin": "*",  # 允许所有来源
-        "Access-Control-Allow-Methods": "GET, OPTIONS",  # 允许的方法
-        "Access-Control-Allow-Headers": "Range, Accept, Origin, Content-Type",
-        "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-    }
+        # 根据文件类型设置缓存策略
+        file_ext = os.path.splitext(filename)[1].lower()
+        if file_ext in ('.pdf', '.epub', '.jpg', '.jpeg', '.png', '.gif', '.css', '.js'):
+            headers["Cache-Control"] = "public, max-age=86400"  # 静态资源缓存24小时
+        else:
+            headers["Cache-Control"] = "public, max-age=3600"  # 其他资源缓存1小时
 
-    # 处理OPTIONS预检请求
-    if request.method == "OPTIONS":
-        return web.Response(status=200, headers=headers)
+        # 对于需要内联显示的文件，设置Content-Disposition
+        if file_ext in ('.pdf', '.epub', '.jpg', '.jpeg', '.png', '.gif'):
+            headers["Content-Disposition"] = "inline"
 
-    # 添加范围请求支持
-    if "Range" in request.headers:
-        range_header = request.headers["Range"]
-        # 处理范围请求
-        file_size = os.path.getsize(file_path)
-        start, end = 0, file_size - 1
+        # 处理OPTIONS预检请求
+        if request.method == "OPTIONS":
+            return web.Response(status=200, headers=headers)
 
-        # 解析范围请求
-        if range_header.startswith("bytes="):
-            range_str = range_header[6:]
-            ranges = range_str.split("-")
+        # 添加范围请求支持
+        if "Range" in request.headers:
+            range_header = request.headers["Range"]
+            print(f"[DEBUG] 收到范围请求: {range_header}")
 
-            if ranges[0]:
-                start = int(ranges[0])
-            if len(ranges) > 1 and ranges[1]:
-                end = int(ranges[1])
+            # 处理范围请求
+            file_size = os.path.getsize(file_path)
+            start, end = 0, file_size - 1
 
-            content_length = end - start + 1
+            # 解析范围请求
+            try:
+                if range_header.startswith("bytes="):
+                    range_str = range_header[6:]
+                    ranges = range_str.split("-")
 
-            headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
-            headers["Content-Length"] = str(content_length)
+                    if ranges[0]:
+                        start = int(ranges[0])
+                    if len(ranges) > 1 and ranges[1]:
+                        end = int(ranges[1])
 
-            # 使用文件范围响应
-            resp = web.Response(status=206, headers=headers)
-            resp.enable_chunked_encoding()
+                    # 确保范围有效
+                    if start < 0 or end >= file_size or start > end:
+                        print(f"[ERROR] 无效的范围请求: {start}-{end}/{file_size}")
+                        return web.Response(
+                            status=416,
+                            headers={
+                                "Content-Range": f"bytes */{file_size}",
+                                "Content-Type": "text/plain",
+                            },
+                            text="Requested Range Not Satisfiable",
+                        )
 
-            with open(file_path, "rb") as f:
-                f.seek(start)
-                data = f.read(content_length)
-                resp.body = data
+                    content_length = end - start + 1
 
-            return resp
+                    headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+                    headers["Content-Length"] = str(content_length)
 
-    # 使用FileResponse提供文件
-    return web.FileResponse(file_path, headers=headers)
+                    # 使用文件范围响应
+                    resp = web.Response(status=206, headers=headers)
+
+                    # 使用aiofiles异步读取文件
+
+                    async with aiofiles.open(file_path, "rb") as f:
+                        await f.seek(start)
+                        data = await f.read(content_length)
+                        resp.body = data
+
+                    return resp
+            except Exception as e:
+                print(f"[ERROR] 处理范围请求时出错: {str(e)}")
+                import traceback
+
+                traceback.print_exc()
+                # 出错时返回完整文件
+                pass
+
+        # 使用FileResponse提供文件
+        return web.FileResponse(file_path, headers=headers)
+    except Exception as e:
+        # 添加异常处理，记录错误信息
+        print(f"[ERROR] 处理文件请求时发生异常: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return web.Response(text="Internal Server Error", status=500)
 
 
 async def debug_url(request):
@@ -385,21 +424,27 @@ def static_url(filename):
 
 
 @web.middleware
-async def log_middleware(request, handler):
-    # print(f"[REQ] {request.method} {request.path_qs}")
+async def log_requests(request, handler):
+    # 记录请求信息
+    print(f"[REQUEST] {request.method} {request.path}")
+    print(f"[HEADERS] {dict(request.headers)}")
+
     try:
         response = await handler(request)
-        # print(f"[RESP] {response.status} {response.content_type}")
+        print(f"[RESPONSE] {response.status}")
         return response
     except Exception as e:
-        # print(f"[ERROR] {e}", flush=True)
+        print(f"[ERROR] {str(e)}")
+        import traceback
+
+        traceback.print_exc()
         raise
 
 
 def init_app():
     """初始化应用"""
     # app = web.Application()
-    app = web.Application(middlewares=[log_middleware])
+    app = web.Application(middlewares=[log_requests])
 
     # 设置Jinja2模板
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader("templates"))
