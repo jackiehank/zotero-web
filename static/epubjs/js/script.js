@@ -183,13 +183,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let fontSize;
         if (width <= 480) {
-            fontSize = 18; // 手机小屏（如 iPhone SE）
+            fontSize = 16; // 手机小屏（如 iPhone SE）
         } else if (width <= 768) {
             fontSize = 18; // 手机大屏/折叠屏（如 iPhone 14 Pro Max）
         } else if (width <= 1024) {
-            fontSize = 22; // 平板（iPad）
+            fontSize = 20; // 平板（iPad）
         } else {
-            fontSize = 22; // 电脑（桌面浏览器）
+            fontSize = 20; // 电脑（桌面浏览器）
         }
 
         rendition.themes.fontSize(fontSize + "px");
