@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_DIR="$HOME/Zotero/web"
+APP_DIR="$HOME/Zotero/zotero-web"
 LOG_FILE="$APP_DIR/zweb.log"
 PID_FILE="$APP_DIR/zweb.pid"
 CMD="uv run python app.py"
