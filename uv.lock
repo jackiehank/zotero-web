@@ -359,29 +359,6 @@ wheels = [
 ]
 
 [[package]]
-name = "web"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "aiofiles" },
-    { name = "aiohttp" },
-    { name = "aiohttp-jinja2" },
-    { name = "flask" },
-    { name = "psutil" },
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiofiles", specifier = ">=24.1.0" },
-    { name = "aiohttp", specifier = ">=3.12.15" },
-    { name = "aiohttp-jinja2", specifier = ">=1.6" },
-    { name = "flask", specifier = ">=3.1.1" },
-    { name = "psutil", specifier = ">=7.0.0" },
-    { name = "watchdog", specifier = ">=6.0.0" },
-]
-
-[[package]]
 name = "werkzeug"
 version = "3.1.3"
 source = { registry = "https://pypi.org/simple" }
@@ -439,4 +416,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/24/fd/725b8e73ac2a50e78a4534ac43c6addf5c1c2d65380dd48a9169cc6739a9/yarl-1.20.1-cp313-cp313t-win32.whl", hash = "sha256:b121ff6a7cbd4abc28985b6028235491941b9fe8fe226e6fdc539c977ea1739d", size = 86591, upload-time = "2025-06-10T00:45:25.793Z" },
     { url = "https://files.pythonhosted.org/packages/94/c3/b2e9f38bc3e11191981d57ea08cab2166e74ea770024a646617c9cddd9f6/yarl-1.20.1-cp313-cp313t-win_amd64.whl", hash = "sha256:541d050a355bbbc27e55d906bc91cb6fe42f96c01413dd0f4ed5a5240513874f", size = 93003, upload-time = "2025-06-10T00:45:27.752Z" },
     { url = "https://files.pythonhosted.org/packages/b4/2d/2345fce04cfd4bee161bf1e7d9cdc702e3e16109021035dbb24db654a622/yarl-1.20.1-py3-none-any.whl", hash = "sha256:83b8eb083fe4683c6115795d9fc1cfaf2cbbefb19b3a1cb68f6527460f483a77", size = 46542, upload-time = "2025-06-10T00:46:07.521Z" },
+]
+
+[[package]]
+name = "zotero-web"
+version = "0.2.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "aiohttp" },
+    { name = "aiohttp-jinja2" },
+    { name = "flask" },
+    { name = "psutil" },
+    { name = "watchdog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiofiles", specifier = ">=24.1.0" },
+    { name = "aiohttp", specifier = ">=3.12.15" },
+    { name = "aiohttp-jinja2", specifier = ">=1.6" },
+    { name = "flask", specifier = ">=3.1.1" },
+    { name = "psutil", specifier = ">=7.0.0" },
+    { name = "watchdog", specifier = ">=6.0.0" },
 ]

@@ -1,16 +1,29 @@
 # Zotero Web
 
-一个基于 aiohttp 的 Web 应用，用于浏览和查看 Zotero 存储中的 PDF 和 EPUB 文件，并提供系统监控功能。
+一个基于 aiohttp 的 Web 应用，用于局域网内浏览和查看 Zotero 存储中的 PDF 和 EPUB 文件，并提供系统监控功能。
 
 ## 功能特性
 
-- 📚 浏览 Zotero 存储中的 PDF 和 EPUB 文件
+- 📚 局域网内浏览、搜索 Zotero 存储中的 PDF 和 EPUB 文件
 - 📖 内嵌 PDF 查看器（使用 pdf.js）
 - 📘 内嵌 EPUB 查看器（使用 epub.js）
 - 📊 系统监控仪表板（CPU、内存、磁盘、网络等）
 - ⏰ 最近访问文件记录
 - 🔄 自动文件变化监控（无需重启即可更新文件列表）
 - 🔒 安全路径检查防止目录遍历攻击
+
+## 界面展示
+文件搜索：
+![search](/static/img/search.jpeg)
+
+pdf 查看：
+![pdf](/static/img/pdf.jpeg)
+
+epub 查看：
+![epub](/static/img/epub.jpeg)
+
+电脑状态监控：
+![monitor](/static/img/monitor.jpeg)
 
 ## 项目结构
 
