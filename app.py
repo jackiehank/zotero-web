@@ -159,7 +159,7 @@ def _list_files_sync() -> List[str]:
         files = []
         for root, _, filenames in os.walk(ZOTERO_STORAGE):
             for f in filenames:
-                if f.lower().endswith((".pdf", ".epub")):
+                if f.lower().endswith((".pdf", ".epub", ".html", ".htm")):
                     full_path = os.path.join(root, f)
                     rel_path = os.path.relpath(full_path, ZOTERO_STORAGE)
                     url_compatible_path = rel_path.replace(os.sep, "/")
@@ -188,7 +188,7 @@ async def view_file(request):
     filename = request.match_info["filename"]
     file_path = os.path.join(ZOTERO_STORAGE, filename)
 
-    # 安全检查
+    # 安全检查：防止路径遍历
     if not os.path.realpath(file_path).startswith(os.path.realpath(ZOTERO_STORAGE)):
         return web.Response(text="Forbidden", status=403)
 
@@ -202,14 +202,13 @@ async def view_file(request):
     _recent_files.insert(0, filename)
     _recent_files = _recent_files[:NUM_RECENT_FILES]
 
-    # 生成完整的绝对URL - 统一处理PDF和EPUB的URL
-    base_url = f"{request.scheme}://{request.host}"
+    # 获取文件扩展名（统一转为小写）
+    ext = os.path.splitext(filename)[1].lower()
 
-    # 对文件名进行URL编码（只编码一次，使用安全字符集）
+    base_url = f"{request.scheme}://{request.host}"
     encoded_filename = quote(filename, safe="")
 
-    if filename.lower().endswith(".pdf"):
-        # 使用与Flask时期相似的编码方式
+    if ext == ".pdf":
         pdf_url = f"{base_url}/file/{encoded_filename}"
         context = {
             "pdf_url": pdf_url,
@@ -217,8 +216,8 @@ async def view_file(request):
             "request": request,
         }
         return aiohttp_jinja2.render_template("pdfviewer.html", request, context)
-    elif filename.lower().endswith(".epub"):
-        # 使用相同的编码方式
+
+    elif ext == ".epub":
         epub_url = f"{base_url}/file/{encoded_filename}"
         context = {
             "epub_url": epub_url,
@@ -226,6 +225,22 @@ async def view_file(request):
             "request": request,
         }
         return aiohttp_jinja2.render_template("epubviewer.html", request, context)
+
+    elif ext in (".html", ".htm"):
+        # 直接读取并返回 HTML 文件内容
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            return web.Response(text=content, content_type="text/html", charset="utf-8")
+        except UnicodeDecodeError:
+            # 如果不是 UTF-8 编码，可尝试其他编码或返回错误
+            return web.Response(text="Unsupported encoding", status=415)
+        except Exception as e:
+            return web.Response(text=f"Error reading file: {str(e)}", status=500)
+
+    else:
+        # 可选：对其他类型文件返回下载或禁止访问
+        return web.Response(text="Unsupported file type", status=415)
 
 
 async def serve_file(request):
