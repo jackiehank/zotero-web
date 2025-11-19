@@ -114,6 +114,61 @@ zweb log
 chmod +x ~/.local/bin/zweb
 ```
 
+### 系统服务安装
+
+ZWeb 可以作为系统服务运行，支持开机自启。
+
+#### 快速安装
+
+```bash
+# 在项目根目录运行
+make install
+make enable
+```
+
+#### 服务管理命令
+
+```bash
+make start      # 启动服务
+make stop       # 停止服务  
+make restart    # 重启服务
+make status     # 查看状态
+make logs       # 查看日志
+make disable    # 禁用服务
+make uninstall  # 卸载服务
+```
+
+#### 手动安装（可选）
+
+如果您不想使用 Makefile，可以手动安装：
+
+1. 创建服务文件：
+```bash
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/zweb.service << EOF
+[Unit]
+Description=ZWeb Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(which uv) run python app.py
+WorkingDirectory=$(pwd)
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
+EOF
+```
+
+2. 启用服务：
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now zweb.service
+loginctl enable-linger $USER
+```
+
 ## 配置
 
 应用默认使用 `../storage` 作为 Zotero 存储路径。如果需要修改，可以在 `app.py` 中调整 `ZOTERO_STORAGE` 变量。
